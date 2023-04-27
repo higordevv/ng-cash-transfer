@@ -1,22 +1,26 @@
-import { json, urlencoded } from "body-parser";
-import express from "express";
+import express, { Express, Request, Response } from "express";
 import morgan from "morgan";
 import cors from "cors";
+import { log } from "logger";
 
-export const createServer = () => {
-  const app = express();
-  app
-    .disable("x-powered-by")
-    .use(morgan("dev"))
-    .use(urlencoded({ extended: true }))
-    .use(json())
-    .use(cors())
-    .get("/message/:name", (req, res) => {
-      return res.json({ message: `hello ${req.params.name}` });
-    })
-    .get("/healthz", (req, res) => {
-      return res.json({ ok: true });
-    });
+class NgCashTransfer {
+  readonly app: Express;
 
-  return app;
-};
+  constructor() {
+    this.app = express();
+    this.middlewares();
+    this.routes();
+  }
+
+  private middlewares(): void {
+    this.app.disable("x-powered-by");
+    this.app.use(morgan("dev"));
+    this.app.use(express.urlencoded({ extended: true }));
+    this.app.use(express.json());
+    this.app.use(cors());
+  }
+
+  private routes(): void {}
+}
+
+export default new NgCashTransfer().app;
