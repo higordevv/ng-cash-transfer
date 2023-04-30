@@ -1,8 +1,11 @@
 import { Request, Response } from "express";
-import { Hash } from "../Utils/bcrypt";
+import { Hash, VerifyHash } from "../Utils/bcrypt";
 import { z } from "zod";
 import { prisma } from "../database/Prisma";
 import jwt from "jsonwebtoken";
+
+const secret = process.env.TOKEN_SECRET as string;
+
 const UserSchema = z.object({
   username: z.string().min(3, "O User deve ter pelo menos 3 caracteres"),
   password: z
@@ -17,15 +20,26 @@ const UserSchema = z.object({
 type UserBody = z.infer<typeof UserSchema>;
 
 export default new (class UserController {
-  async CREATE(req: Request<any, any, UserBody>, res: Response) {
+  async registerOrAuthenticateUser(req: Request<any, any, UserBody>, res: Response) {
     const { username, password } = UserSchema.parse(req.body);
 
     const user = await prisma.user.findMany({
       where: { username: `@${username}` },
     });
 
-    if (user.length > 0)
-      return res.status(400).json({ message: "Usuário já existe." });
+    if (user.length > 0) {
+      if (!(await VerifyHash(password, user[0].password))) {
+        return res.status(401).json({ message: "Senha invalida" });
+      }
+
+      const { id } = user[0];
+      const token_login = jwt.sign({ id }, secret, {
+        expiresIn: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // 24 Hours
+      });
+      return res
+        .cookie("Authorization", token_login, { httpOnly: true })
+        .json({ status: "User logged in", expiresIn: "Token expires in 24h" });
+    }
 
     try {
       const hashedPassword = await Hash(password);
@@ -45,13 +59,12 @@ export default new (class UserController {
         include: { account: true },
       });
 
-      const secret = process.env.TOKEN_SECRET as string;
       const token = jwt.sign({ id }, secret, {
         expiresIn: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // 24 Hours
       });
       return res
         .cookie("Authorization", token, { httpOnly: true })
-        .json({ token, user: username, balance: "100R$" });
+        .json({ status: "User registred", user: username, balance: "100R$" });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({

@@ -3,7 +3,7 @@ import UserController from "../../Controllers/UserController";
 
 const route: IRouter = Router();
 
-route.post("/", UserController.CREATE);
+route.post("/", UserController.registerOrAuthenticateUser);
 route.get("/");
 
 export default route;
