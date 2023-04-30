@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,27 +8,37 @@ datasource db {
 }
 
 model User {
-  id        Int     @id @default(autoincrement())
+  id        String  @id @default(uuid())
   username  String
   password  String
-  accountId Int
-  account   Account @relation(fields: [accountId], references: [id])
+  accountId String  @unique
+  account   Account @relation("UserAccount", fields: [accountId], references: [id])
+
+  @@index([username])
+  @@map("user")
 }
 
 model Account {
-  id              Int           @id @default(autoincrement())
+  id              String        @id @default(uuid())
   balance         Float         @default(100)
-  debitedAccount  Transaction[] @relation("DebitedAccount")
+  transactions    Transaction[]
   creditedAccount Transaction[] @relation("CreditedAccount")
-  users           User[]
+  debitedAccount  Transaction[] @relation("DebitedAccount")
+  users           User?         @relation("UserAccount")
+
+  @@map("account")
 }
 
 model Transaction {
-  id                Int      @id @default(autoincrement())
-  debitedAccountId  Int
-  creditedAccountId Int
+  id                String   @id @default(uuid())
+  debitedAccountId  String
+  creditedAccountId String
   value             Float
   createdAt         DateTime @default(now())
-  debitedAccount    Account  @relation("DebitedAccount", fields: [debitedAccountId], references: [id])
+  accountId         String?
+  Account           Account? @relation(fields: [accountId], references: [id])
   creditedAccount   Account  @relation("CreditedAccount", fields: [creditedAccountId], references: [id])
+  debitedAccount    Account  @relation("DebitedAccount", fields: [debitedAccountId], references: [id])
+
+  @@map("transation")
 }

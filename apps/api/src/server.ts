@@ -1,8 +1,7 @@
 import express, { Express, Request, Response } from "express";
 import morgan from "morgan";
 import cors from "cors";
-import { log } from "logger";
-
+import UserRouter from "./routers/user/route";
 class NgCashTransfer {
   readonly app: Express;
 
@@ -20,7 +19,9 @@ class NgCashTransfer {
     this.app.use(cors());
   }
 
-  private routes(): void {}
+  private routes(): void {
+    this.app.use("/user", UserRouter);
+  }
 }
 
 export default new NgCashTransfer().app;
