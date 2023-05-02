@@ -1,7 +1,10 @@
 import express, { Express, Request, Response } from "express";
 import morgan from "morgan";
-import cors from "cors";
+import cors, { CorsOptions } from "cors";
+import cookieParser from "cookie-parser";
 import UserRouter from "./routers/user/route";
+import Transactions from "./routers/transactions/route";
+
 class NgCashTransfer {
   readonly app: Express;
 
@@ -16,11 +19,17 @@ class NgCashTransfer {
     this.app.use(morgan("dev"));
     this.app.use(express.urlencoded({ extended: true }));
     this.app.use(express.json());
-    this.app.use(cors());
+    const corsOptions: CorsOptions = {
+      origin: "http://localhost:3000",
+      credentials: true,
+    };
+    this.app.use(cors(corsOptions));
+    this.app.use(cookieParser());
   }
 
   private routes(): void {
     this.app.use("/user", UserRouter);
+    this.app.use("/transaction", Transactions);
   }
 }
 

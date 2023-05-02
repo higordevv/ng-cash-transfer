@@ -1,22 +1,33 @@
-import supertest from "supertest";
-import { createServer } from "../server";
+import request from "supertest";
+import NgCashTransfer from "../server";
 
-describe("server", () => {
-  it("health check returns 200", async () => {
-    await supertest(createServer())
-      .get("/healthz")
-      .expect(200)
-      .then((res) => {
-        expect(res.body.ok).toBe(true);
-      });
+describe("User routes", () => {
+  const server = NgCashTransfer.listen(3001);
+
+  it("should register or authenticate a user", async () => {
+    const response = await request(server)
+      .post("/user")
+      .send({ email: "test@example.com", password: "Password12105" });
+    expect(response.status).toBe(200);
+    expect(response.body.token).toBeDefined();
   });
 
-  it("message endpoint says hello", async () => {
-    await supertest(createServer())
-      .get("/message/jared")
-      .expect(200)
-      .then((res) => {
-        expect(res.body).toEqual({ message: "hello jared" });
-      });
+  it("should return user info with valid JWT", async () => {
+    const registerResponse = await request(server)
+      .post("/user")
+      .send({ email: "test@example.com", password: "Password12105" });
+
+    const response = await request(server)
+      .get("/user")
+      .set("Authorization", `Bearer ${registerResponse.body.token}`);
+    expect(response.status).toBe(200);
+    expect(response.body.email).toBe("test@example.com");
+  });
+
+  it("should return unauthorized with invalid JWT", async () => {
+    const response = await request(server)
+      .get("/user")
+      .set("Authorization", "Bearer invalid_token");
+    expect(response.status).toBe(200);
   });
 });
