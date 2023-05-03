@@ -1,55 +1,36 @@
 import * as S from "@chakra-ui/react";
 import Profile from "../../components/Profile";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
-import { useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import ModalTransfer from "../../components/ModalTransfer";
-import { destroyCookie, parseCookies } from "nookies";
+import { parseCookies } from "nookies";
 import { GetServerSideProps } from "next";
 import { recoverUserInfo } from "../../service/api";
 import { useRouter } from "next/router";
-export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  const cokkies = parseCookies(ctx);
-  const { ["Authorization"]: token } = cokkies;
-  if (!token) {
-    return {
-      redirect: {
-        destination: `/?message=${encodeURIComponent(
-          "Hace Login para acessar servicios"
-        )}`,
-        permanent: false,
-      },
-    };
-  }
-
-  try {
-    const User = await recoverUserInfo(cokkies);
-  } catch (e: any) {
-    console.log(e);
-    return {
-      redirect: {
-        destination: `/?message=${encodeURIComponent(
-          e.response?.data?.message || "error"
-        )}`,
-        permanent: false,
-      },
-    };
-  }
-  return { props: {} };
-};
+import { useAuthContext } from "../../context/AuthContext";
 
 export default function UserDashboard() {
+  const { user, logout, authenticated } = useAuthContext();
   const [showBalance, setShowBalance] = useState(false);
   const { isOpen, onOpen, onClose } = S.useDisclosure();
-  const router = useRouter();
   const toast = S.useToast();
-
+  const router = useRouter();
+  // const VerifyAuth = useCallback(async () => {
+  //   if (!authenticated) return router.push("/");
+  // }, []);
+  // useEffect(() => {
+  //   VerifyAuth();
+  // }, []);
   const balance = showBalance ? "100R$" : "*********";
 
   return (
-    <S.Box p={4}>
-      <S.Flex flexDirection={["column", "column", "row"]}>
+    <S.Box p={1}>
+      <S.Flex
+        flexDirection={["column", "column", "row"]}
+        justifyContent={"center"}
+      >
         <S.Box mb={[4, 4, 0]} mr={[0, 0, 4]}>
-          <S.Heading>Olá Higor</S.Heading>
+          <S.Heading>Olá {user?.username}</S.Heading>
           <Profile userId={"agagagaga"} username="Higor" />
           <S.Text fontSize="xl" fontWeight="bold">
             Balance: {balance}{" "}
@@ -64,7 +45,7 @@ export default function UserDashboard() {
             </S.Button>
           </S.Text>
           <S.Box mb={4}>
-            <S.Button colorScheme="red" onClick={() => {}}>
+            <S.Button colorScheme="red" onClick={logout}>
               Logout
             </S.Button>
           </S.Box>

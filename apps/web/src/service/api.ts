@@ -14,10 +14,10 @@ const { Authorization: token } = cokkies;
 
 if (token) api.defaults.headers.Authorization = `${token}`;
 
-export async function recoverUserInfo(cokkies: { [key: string]: string }) {
+export async function recoverUserInfo() {
   return api.get(`${API_HOST}/user `, {
     headers: {
-      Cookie: `Authorization=${cokkies.Authorization}`,
+      Cookie: token,
     },
   });
 }

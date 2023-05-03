@@ -32,12 +32,13 @@ function ModalTransfer({ isOpen, onClose }: ModalTransferProps) {
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors },
   } = useForm<TransactionBody>({
     mode: "all",
     resolver: zodResolver(TransactionSchema),
     criteriaMode: "all",
-    defaultValues: { creditedAccountUsername: "" },
+    defaultValues: { creditedAccountUsername: "", value: 0 },
   });
   const toast = S.useToast();
 
@@ -65,8 +66,8 @@ function ModalTransfer({ isOpen, onClose }: ModalTransferProps) {
   );
 
   const onSubmit = (data: TransactionBody) => {
-    console.log(data);
     mutation.mutate(data);
+    reset();
   };
   return (
     <S.Modal isOpen={isOpen} onClose={onClose}>

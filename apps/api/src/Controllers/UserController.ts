@@ -20,31 +20,54 @@ const UserSchema = z.object({
 type UserBody = z.infer<typeof UserSchema>;
 
 export default new (class UserController {
-  async registerOrAuthenticateUser(
-    req: Request<any, any, UserBody>,
-    res: Response
-  ) {
-    const { username, password } = UserSchema.parse(req.body);
-
-    const user = await prisma.user.findMany({
-      where: { username: `@${username}` },
-    });
-
-    if (user.length > 0) {
-      if (!(await VerifyHash(password, user[0].password))) {
-        return res.status(401).json({ message: "Senha invalida" });
-      }
-
-      const { id } = user[0];
-      const token_login = jwt.sign({ id }, secret, {
-        expiresIn: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // 24 Hours
-      });
-      return res
-        .cookie("Authorization", token_login, { httpOnly: true })
-        .json({ status: "User logged in", expiresIn: "Token expires in 24h" });
-    }
-
+  async AuthenticateUser(req: Request<any, any, UserBody>, res: Response) {
     try {
+      const { username, password } = UserSchema.parse(req.body);
+
+      const user = await prisma.user.findMany({
+        where: { username: `@${username}` },
+      });
+
+      if (user.length > 0) {
+        if (!(await VerifyHash(password, user[0].password))) {
+          return res.status(401).json({ message: "Senha invalida" });
+        }
+
+        const { id } = user[0];
+        const token_login = jwt.sign({ id }, secret, {
+          expiresIn: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // 24 Hours
+        });
+        return res
+          .cookie("Authorization", token_login, { httpOnly: true })
+          .json({
+            status: "User logged in",
+            expiresIn: "Token expires in 24h",
+          });
+      }
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          message: "Erro de validação",
+          errors: error.errors.map((e) => e.message),
+        });
+      }
+      console.error(error);
+      res.status(500).send("Erro ao criar usuário.");
+    }
+  }
+
+  async RegisterUser(req: Request<any, any, UserBody>, res: Response) {
+    try {
+      const { username, password } = UserSchema.parse(req.body);
+      
+      
+      const user = await prisma.user.findMany({
+        where: { username: `@${username}` },
+      });
+
+      if (user.length > 0) {
+        return res.status(400).json({message: "User já existe"})
+      }
       const hashedPassword = await Hash(password);
 
       const { id: accountId } = await prisma.account.create({
