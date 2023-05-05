@@ -30,15 +30,21 @@ model Account {
 }
 
 model Transaction {
-  id                String   @id @default(uuid())
+  id                String          @id @default(uuid())
   debitedAccountId  String
   creditedAccountId String
+  type              TransactionType @default(CashOut)
   value             Float
-  createdAt         DateTime @default(now())
+  createdAt         DateTime        @default(now())
   accountId         String?
-  Account           Account? @relation(fields: [accountId], references: [id])
-  creditedAccount   Account  @relation("CreditedAccount", fields: [creditedAccountId], references: [id])
-  debitedAccount    Account  @relation("DebitedAccount", fields: [debitedAccountId], references: [id])
+  Account           Account?        @relation(fields: [accountId], references: [id])
+  creditedAccount   Account         @relation("CreditedAccount", fields: [creditedAccountId], references: [id])
+  debitedAccount    Account         @relation("DebitedAccount", fields: [debitedAccountId], references: [id])
 
   @@map("transation")
+}
+
+enum TransactionType {
+  CashIn
+  CashOut
 }

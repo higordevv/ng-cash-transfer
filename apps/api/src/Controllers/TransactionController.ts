@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { prisma } from "../database/Prisma";
 import { z } from "zod";
 import jwt, { JwtPayload } from "jsonwebtoken";
-
+import type {Transaction } from "@prisma/client"
 const secret = process.env.TOKEN_SECRET as string;
 
 const TransactionSchema = z.object({
@@ -59,17 +59,28 @@ export default new (class TransactionController {
           debitedAccount: { connect: { id: account.id } },
           creditedAccount: { connect: { id: creditedAccount.id } },
           value,
+          type: "CashOut"
         },
       });
+      await prisma.transaction.create({
+        data: {
+          debitedAccount: { connect: { id: account.id } },
+          creditedAccount: { connect: { id: creditedAccount.id } },
+          value,
+          type: "CashIn"
+        },
+      });
+      
 
       await prisma.account.update({
         where: { id: account.id },
         data: { balance: debitedAccount.balance - value },
       });
-
+      
       await prisma.account.update({
         where: { id: creditedAccount.id },
         data: { balance: creditedAccount.balance + value },
+        select: {transactions: { where: { }}}
       });
 
       return res.status(201).json(transaction);

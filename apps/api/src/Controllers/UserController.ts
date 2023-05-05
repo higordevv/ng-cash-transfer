@@ -1,10 +1,13 @@
 import { Request, Response } from "express";
 import { Hash, VerifyHash } from "../Utils/bcrypt";
-import { z } from "zod";
+import { EnumValues, z } from "zod";
 import { prisma } from "../database/Prisma";
 import jwt, { JwtPayload } from "jsonwebtoken";
+import { Prisma, TransactionType } from "@prisma/client";
 
 const secret = process.env.TOKEN_SECRET as string;
+
+type OrderBy = "asc" | "desc";
 
 const UserSchema = z.object({
   username: z.string().min(3, "O User deve ter pelo menos 3 caracteres"),
@@ -21,19 +24,19 @@ type UserBody = z.infer<typeof UserSchema>;
 
 export default new (class UserController {
   async AuthenticateUser(req: Request<any, any, UserBody>, res: Response) {
+    const { username, password } = UserSchema.parse(req.body);
     try {
-      const { username, password } = UserSchema.parse(req.body);
-
-      const user = await prisma.user.findMany({
+      const user = await prisma.user.findFirst({
         where: { username: `@${username}` },
       });
+      if (!user) res.status(401).json({ message: "Usuario não existe" });
 
-      if (user.length > 0) {
-        if (!(await VerifyHash(password, user[0].password))) {
+      if (user) {
+        if (!(await VerifyHash(password, user.password))) {
           return res.status(401).json({ message: "Senha invalida" });
         }
 
-        const { id } = user[0];
+        const { id } = user;
         const token_login = jwt.sign({ id }, secret, {
           expiresIn: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // 24 Hours
         });
@@ -52,21 +55,19 @@ export default new (class UserController {
         });
       }
       console.error(error);
-      res.status(500).send("Erro ao criar usuário.");
+      res.status(500).send("Erro ao logar usuário.");
     }
   }
 
   async RegisterUser(req: Request<any, any, UserBody>, res: Response) {
+    const { username, password } = UserSchema.parse(req.body);
     try {
-      const { username, password } = UserSchema.parse(req.body);
-      
-      
       const user = await prisma.user.findMany({
         where: { username: `@${username}` },
       });
 
       if (user.length > 0) {
-        return res.status(400).json({message: "User já existe"})
+        return res.status(400).json({ message: "User já existe" });
       }
       const hashedPassword = await Hash(password);
 
@@ -130,7 +131,11 @@ export default new (class UserController {
       return res.status(500).send("Erro ao buscar informações do usuário.");
     }
   }
-  async getTransactionHistory(req: Request, res: Response) {
+
+  async getTransactionHistory(
+    req: Request<any, any, any, { orderBy?: OrderBy; type?: TransactionType }>,
+    res: Response
+  ): Promise<Response> {
     try {
       const token = req.cookies.Authorization;
       const decodedToken = jwt.verify(token, secret) as JwtPayload;
@@ -146,19 +151,43 @@ export default new (class UserController {
       }
 
       const { account } = user;
+      const { orderBy = "desc", type } = req.query;
+
+      const where: Prisma.TransactionWhereInput = {
+        OR: [
+          { creditedAccountId: account.id },
+          { debitedAccountId: account.id },
+        ],
+      };
+
+      if (type && typeof type === "string" && TransactionType[type]) {
+        where.type = TransactionType[type];
+      }
+
       const transactions = await prisma.transaction.findMany({
-        where: {
-          OR: [
-            { creditedAccountId: account.id },
-            { debitedAccountId: account.id },
-          ],
-        },
+        where,
         include: { creditedAccount: true, debitedAccount: true },
-        orderBy: { createdAt: "desc" },
+        orderBy: { createdAt: orderBy },
       });
 
+      const formattedTransactions = transactions.map((transaction) => {
+        let formattedTransaction: any = {
+          id: transaction.id,
+          creditedAccount: transaction.creditedAccount.id,
+          type: transaction.type,
+          createdAt: new Date(transaction.createdAt).toLocaleString(),
+        };
+      
+        if (transaction.type === "CashIn") {
+          formattedTransaction.amountCredited = transaction.value;
+        } else if (transaction.type === "CashOut") {
+          formattedTransaction.amountDebited = transaction.value - transaction.debitedAccount.balance;
+        }
+      
+        return formattedTransaction;
+      });
       return res.status(200).json({
-        transactions,
+        transactions: formattedTransactions,
       });
     } catch (error) {
       console.error(error);
