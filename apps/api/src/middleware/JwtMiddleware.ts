@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
+import jwt, { JwtPayload } from "jsonwebtoken";
 import type { User } from "@prisma/client";
 
 const secret = process.env.TOKEN_SECRET as string;
@@ -16,19 +16,31 @@ export default new (class VerifyJwt {
     res: Response,
     next: NextFunction
   ) => {
-    const token = req.cookies.Authorization;
-
-    if (!token) {
-      return res.status(401).send({ message: "Token não encontrado" });
-    }
-
     try {
       if (this.secret) {
-        jwt.verify(token, this.secret);
-        next();
+        const token = req.cookies.Authorization;
+        if (!token) {
+          return res.status(401).send({ message: "Token não encontrado" });
+        }
+        const decodedToken = jwt.decode(token) as JwtPayload;
+        if (decodedToken.exp && decodedToken.exp < Date.now() / 1000) {
+          return res.status(401).send({ message: "Token expirado" });
+        }
+        jwt.verify(
+          token,
+          this.secret,
+          { ignoreExpiration: false, complete: true },
+          (err, decoded) => {
+            if (decoded) {
+              next();
+            } else {
+              return res.status(401).send({ message: "Token inválido" });
+            }
+          }
+        );
       }
     } catch (e) {
-      return res.status(401).json({ message: "Token inválido" });
+      return res.status(500).send({ message: "Erro interno do servidor" });
     }
   };
 })(secret).handler;

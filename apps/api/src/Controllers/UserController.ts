@@ -38,7 +38,7 @@ export default new (class UserController {
 
         const { id } = user;
         const token_login = jwt.sign({ id }, secret, {
-          expiresIn: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // 24 Hours
+          expiresIn: 60 * 60 * 24,
         });
         return res
           .cookie("Authorization", token_login, { httpOnly: true })
@@ -87,7 +87,7 @@ export default new (class UserController {
       });
 
       const token = jwt.sign({ id }, secret, {
-        expiresIn: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // 24 Hours
+        expiresIn: 60 * 60 * 24, // 24 Hours
       });
       return res
         .cookie("Authorization", token, { httpOnly: true })
@@ -177,13 +177,14 @@ export default new (class UserController {
           type: transaction.type,
           createdAt: new Date(transaction.createdAt).toLocaleString(),
         };
-      
+
         if (transaction.type === "CashIn") {
           formattedTransaction.amountCredited = transaction.value;
         } else if (transaction.type === "CashOut") {
-          formattedTransaction.amountDebited = transaction.value - transaction.debitedAccount.balance;
+          formattedTransaction.amountDebited =
+            transaction.value - transaction.debitedAccount.balance;
         }
-      
+
         return formattedTransaction;
       });
       return res.status(200).json({
